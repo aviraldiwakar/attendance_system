@@ -1,4 +1,4 @@
-package com.attendance.teacher_server;
+package com.attendance.teacherserver;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
