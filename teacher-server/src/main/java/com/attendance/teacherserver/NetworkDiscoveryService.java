@@ -8,51 +8,74 @@ import jakarta.annotation.PreDestroy;
 import javax.jmdns.JmDNS;
 import javax.jmdns.ServiceInfo;
 import java.io.IOException;
+import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
 
 @Service
 public class NetworkDiscoveryService {
 
-    private JmDNS jmdns;
+    // Keep track of all broadcast instances so we can close them cleanly later
+    private final List<JmDNS> jmdnsInstances = new ArrayList<>();
 
     @EventListener(ApplicationReadyEvent.class)
     public void startBroadcasting() {
         try {
-            // Retrieve the local IP address of the teacher's machine
-            InetAddress localHost = InetAddress.getLocalHost();
+            // 1. Get every network connection on the laptop (Wi-Fi, LAN, Hotspot)
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
 
-            // Initialize JmDNS on this specific IP
-            jmdns = JmDNS.create(localHost);
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface networkInterface = interfaces.nextElement();
 
-            // Define the network service: Type, Name, Port, and Description
-            ServiceInfo serviceInfo = ServiceInfo.create(
-                    "_attendance._tcp.local.",
-                    "current Class",
-                    8080,
-                    "AI Attendance Server"
-            );
+                // 2. Ignore inactive networks and the internal loopback (127.0.0.1)
+                if (networkInterface.isLoopback() || !networkInterface.isUp()) {
+                    continue;
+                }
 
-            // Register and begin broadcasting
-            jmdns.registerService(serviceInfo);
-            System.out.println("Network broadcast started on: " + localHost.getHostAddress());
-            System.out.println("Broadcasting as: " + serviceInfo.getName());
+                Enumeration<InetAddress> addresses = networkInterface.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    InetAddress addr = addresses.nextElement();
 
-        } catch (IOException e) {
-            System.err.println("Error starting network discovery: " + e.getMessage());
+                    // 3. Only bind to standard IPv4 addresses
+                    if (addr instanceof Inet4Address) {
+                        try {
+                            JmDNS jmdns = JmDNS.create(addr);
+                            ServiceInfo serviceInfo = ServiceInfo.create(
+                                    "_attendance._tcp.local.",
+                                    "Current Class",
+                                    8080,
+                                    "AI Attendance Server"
+                            );
+                            jmdns.registerService(serviceInfo);
+                            jmdnsInstances.add(jmdns);
+
+                            System.out.println("Broadcasting on: " + networkInterface.getDisplayName() + " | IP: " + addr.getHostAddress());
+                        } catch (IOException e) {
+                            System.err.println("Skipped IP " + addr.getHostAddress() + " - " + e.getMessage());
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error enumerating network interfaces: " + e.getMessage());
         }
     }
 
-    // Ensure the broadcast stops cleanly when the server is shut down
     @PreDestroy
     public void stopBroadcasting() {
-        if (jmdns != null) {
-            jmdns.unregisterAllServices();
-            try {
-                jmdns.close();
-                System.out.println("Network broadcast stopped.");
-            } catch (IOException e) {
-                System.err.println("Error closing JmDNS: " + e.getMessage());
+        for (JmDNS jmdns : jmdnsInstances) {
+            if (jmdns != null) {
+                jmdns.unregisterAllServices();
+                try {
+                    jmdns.close();
+                } catch (IOException e) {
+                    System.err.println("Error closing JmDNS: " + e.getMessage());
+                }
             }
         }
+        System.out.println("All network broadcasts stopped.");
     }
 }
