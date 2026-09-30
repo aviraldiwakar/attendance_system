@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="32dp"
+    android:gravity="center">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Student Setup"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="32dp" />
+
+    <EditText
+        android:id="@+id/etStudentName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Full Name"
+        android:inputType="textPersonName"
+        android:padding="16dp"
+        android:background="#E0E0E0"
+        android:layout_marginBottom="16dp"/>
+
+    <EditText
+        android:id="@+id/etEnrollmentId"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enrollment ID"
+        android:inputType="textCapCharacters"
+        android:padding="16dp"
+        android:background="#E0E0E0"
+        android:layout_marginBottom="32dp"/>
+
+    <Button
+        android:id="@+id/btnSave"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Save &amp; Continue"
+        android:padding="16dp"
+        android:textSize="18sp"
+        android:backgroundTint="#4CAF50"/>
+
+</LinearLayout>
