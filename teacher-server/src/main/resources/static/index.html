@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard | AI Attendance</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 40px; display: flex; justify-content: center; }
+        .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; max-width: 500px; }
+        h2 { margin-top: 0; color: #2c3e50; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #34495e; font-size: 14px; }
+        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        button { width: 100%; padding: 14px; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+        .btn-primary { background-color: #3498db; color: white; }
+        .btn-primary:hover { background-color: #2980b9; }
+        .btn-danger { background-color: #e74c3c; color: white; display: none; }
+        .btn-danger:hover { background-color: #c0392b; }
+        .status-badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 20px; }
+        .status-offline { background-color: #ecf0f1; color: #7f8c8d; }
+        .status-live { background-color: #d4efdf; color: #27ae60; }
+        #section-stream { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>AI Attendance System</h2>
+
+    <!-- Status Indicator -->
+    <div id="statusBadge" class="status-badge status-offline">Stream: OFFLINE</div>
+
+    <!-- Section 1: Teacher Registration -->
+    <div id="section-auth">
+        <div class="form-group">
+            <label>Teacher Name</label>
+            <input type="text" id="teacherName" placeholder="e.g., Prof. Aviral Jain">
+        </div>
+        <div class="form-group">
+            <label>Working ID</label>
+            <input type="text" id="teacherId" placeholder="e.g., T-8493">
+        </div>
+        <button class="btn-primary" onclick="saveTeacher()">Save Profile & Continue</button>
+    </div>
+
+    <!-- Section 2: Stream Controls -->
+    <div id="section-stream">
+        <div class="form-group">
+            <label>Class Name</label>
+            <input type="text" id="className" placeholder="e.g., CS101 - Data Structures">
+        </div>
+        <div class="form-group">
+            <label>Timeout (Minutes)</label>
+            <input type="number" id="timeout" value="10" min="1">
+        </div>
+        <button id="btnStart" class="btn-primary" onclick="startStream()">Start Attendance Stream</button>
+        <button id="btnEnd" class="btn-danger" onclick="endStream()">End Stream Early</button>
+    </div>
+</div>
+
+<script>
+    // 1. Handle Teacher Profile (Local Storage)
+    window.onload = function() {
+        const savedName = localStorage.getItem('teacherName');
+        const savedId = localStorage.getItem('teacherId');
+        if (savedName && savedId) {
+            document.getElementById('teacherName').value = savedName;
+            document.getElementById('teacherId').value = savedId;
+            showStreamControls();
+        }
+        checkStatus();
+        setInterval(checkStatus, 3000); // Poll status every 3 seconds
+    };
+
+    function saveTeacher() {
+        const name = document.getElementById('teacherName').value.trim();
+        const id = document.getElementById('teacherId').value.trim();
+        if(!name || !id) return alert("Please fill in both fields");
+
+        localStorage.setItem('teacherName', name);
+        localStorage.setItem('teacherId', id);
+        showStreamControls();
+    }
+
+    function showStreamControls() {
+        document.getElementById('section-auth').style.display = 'none';
+        document.getElementById('section-stream').style.display = 'block';
+    }
+
+    // 2. Handle Stream API Calls
+    async function startStream() {
+        const className = document.getElementById('className').value.trim();
+        const timeout = document.getElementById('timeout').value;
+        if(!className) return alert("Please enter a class name");
+
+        await fetch('/api/stream/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ className, timeout })
+        });
+        checkStatus();
+    }
+
+    async function endStream() {
+        await fetch('/api/stream/stop', { method: 'POST' });
+        checkStatus();
+    }
+
+    async function checkStatus() {
+        const response = await fetch('/api/stream/status');
+        const data = await response.json();
+
+        const badge = document.getElementById('statusBadge');
+        const btnStart = document.getElementById('btnStart');
+        const btnEnd = document.getElementById('btnEnd');
+
+        if (data.active) {
+            badge.className = 'status-badge status-live';
+            badge.innerText = 'LIVE: ' + data.className;
+            btnStart.style.display = 'none';
+            btnEnd.style.display = 'block';
+            document.getElementById('className').disabled = true;
+            document.getElementById('timeout').disabled = true;
+        } else {
+            badge.className = 'status-badge status-offline';
+            badge.innerText = 'Stream: OFFLINE';
+            btnStart.style.display = 'block';
+            btnEnd.style.display = 'none';
+            document.getElementById('className').disabled = false;
+            document.getElementById('timeout').disabled = false;
+        }
+    }
+</script>
+
+</body>
+</html>
