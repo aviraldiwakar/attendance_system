@@ -34,6 +34,7 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import android.provider.Settings
 
 class MainActivity : AppCompatActivity() {
 
@@ -246,10 +247,13 @@ class MainActivity : AppCompatActivity() {
         val studentName = prefs.getString("studentName", "Unknown Student")
         val enrollmentId = prefs.getString("enrollmentId", "Unknown ID")
 
+        val hardwareId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+
         val jsonPayload = JSONObject().apply {
             put("studentName", studentName)
             put("enrollmentId", enrollmentId)
             put("timestamp", System.currentTimeMillis())
+            put("deviceId", hardwareId)
         }
 
         val requestBody = jsonPayload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())

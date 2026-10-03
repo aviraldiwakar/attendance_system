@@ -23,6 +23,7 @@ public class AttendanceController {
         try {
             String name = (String) payload.get("studentName");
             String enrollmentId = (String) payload.get("enrollmentId");
+            String deviceId = (String) payload.get("deviceId"); // Catch the new hardware ID
             long timestampMillis = Long.parseLong(payload.get("timestamp").toString());
 
             LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestampMillis), ZoneId.systemDefault());
@@ -32,16 +33,24 @@ public class AttendanceController {
             String fileName = "Attendance_" + dateString + ".csv";
             File file = new File(fileName);
 
-            // 1. DUPLICATE CHECK: Read the file to see if the ID is already there
+            // 1. HARDWARE & ID DUPLICATE CHECK
             if (file.exists()) {
                 try (BufferedReader br = new BufferedReader(new FileReader(file))) {
                     String line;
                     while ((line = br.readLine()) != null) {
-                        // Check if the line starts with this specific student's ID
-                        if (line.startsWith(enrollmentId + ",")) {
-                            System.out.println("⚠️ ALREADY MARKED: " + name + " (" + enrollmentId + ")");
-                            // Return a 409 Conflict status so the Android app knows it's a duplicate
-                            return ResponseEntity.status(409).body("Already Marked");
+                        String[] columns = line.split(",");
+                        if (columns.length >= 4) {
+                            String savedEnrollment = columns[0];
+                            String savedDevice = columns[3];
+
+                            if (savedEnrollment.equals(enrollmentId)) {
+                                System.out.println("⚠️ BLOCKED: ID " + enrollmentId + " already marked present.");
+                                return ResponseEntity.status(409).body("Student Already Marked");
+                            }
+                            if (savedDevice.equals(deviceId)) {
+                                System.out.println("🚨 BLOCKED: Phone " + deviceId + " attempted to mark multiple students.");
+                                return ResponseEntity.status(409).body("Device Already Used");
+                            }
                         }
                     }
                 }
@@ -52,10 +61,11 @@ public class AttendanceController {
             PrintWriter pw = new PrintWriter(fw);
 
             if (isNewFile) {
-                pw.println("Enrollment ID,Student Name,Time");
+                pw.println("Enrollment ID,Student Name,Time,Device ID");
             }
 
-            pw.println(enrollmentId + "," + name + "," + timeString);
+            // Write all 4 columns
+            pw.println(enrollmentId + "," + name + "," + timeString + "," + deviceId);
             pw.flush();
             pw.close();
 
